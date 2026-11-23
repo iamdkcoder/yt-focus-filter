@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>YouTube Focus Filter settings</title>
+  <style>
+    body { font: 14px/1.5 system-ui, sans-serif; max-width: 640px; margin: 32px auto; padding: 0 16px; color: #1f2328; }
+    h1 { font-size: 20px; }
+    label { display: block; font-weight: 600; margin-top: 20px; }
+    .hint { font-weight: 400; color: #57606a; font-size: 12px; margin-top: 2px; }
+    input[type="password"], textarea { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; }
+    textarea { min-height: 80px; }
+    .row { display: flex; align-items: center; gap: 12px; }
+    button { margin-top: 24px; margin-right: 8px; padding: 6px 14px; font: inherit; cursor: pointer; }
+    h2 { font-size: 16px; margin-top: 28px; }
+    table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+    th, td { text-align: right; padding: 4px 8px; border-bottom: 1px solid #d0d7de; }
+    th:first-child, td:first-child { text-align: left; }
+    input[type="number"] { width: 110px; padding: 4px 6px; font: inherit; }
+    #status { margin-top: 16px; min-height: 20px; }
+    .err { color: #cf222e; }
+  </style>
+</head>
+<body>
+  <h1>YouTube Focus Filter</h1>
+
+  <h2>Usage (estimated)</h2>
+  <table>
+    <thead><tr><th>Period</th><th>Requests</th><th>Videos sent</th><th>Input tokens</th><th>Est. cost</th></tr></thead>
+    <tbody id="usageBody"></tbody>
+  </table>
+  <div class="hint">Counted from the usage reported by each OpenAI response, in this browser only. Weeks run Monday to Sunday and days follow your local time. The cost is an estimate (input tokens × the price below); the OpenAI dashboard is the source of truth.</div>
+  <button id="resetUsage">Reset usage statistics</button>
+
+  <label><input type="checkbox" id="enabled"> Enable filtering</label>
+  <label><input type="checkbox" id="debug"> Log each verdict to the page console
+    <div class="hint">Shows probability, channel, and title for every video. Useful for tuning the threshold.</div>
+  </label>
+
+  <label for="apiKey">OpenAI API key
+    <div class="hint" id="keyHint"></div>
+    <div class="hint">Stored only in this browser (chrome.storage.local) and sent only to api.openai.com. Use a restricted key with a low spend limit.</div>
+  </label>
+  <input type="password" id="apiKey" autocomplete="off" placeholder="Paste a key to set or replace it">
+
+  <label for="focus">What do you want to see?
+    <div class="hint">Describe the topics to keep. Everything else is hidden. Changing this clears the cache.</div>
+  </label>
+  <textarea id="focus"></textarea>
+
+  <label for="allowChannels">Always show these channels
+    <div class="hint">One channel name per line. Matches the exact name, ignoring upper/lower case. These videos skip the AI check.</div>
+  </label>
+  <textarea id="allowChannels"></textarea>
+
+  <label for="blockChannels">Always hide these channels
+    <div class="hint">One channel name per line. If a channel is in both lists, hiding wins. Turn on logging above to see the exact channel names in the YouTube console.</div>
+  </label>
+  <textarea id="blockChannels"></textarea>
+
+  <label for="blockKeywords">Hide videos whose title has these words (no AI call)
+    <div class="hint">One word or phrase per line, matched as whole words in the title, ignoring case, in any language. Example: "song" hides "Best song ever" but not "songwriting". Starts with music, podcast, movie, comedy, and gaming words.</div>
+  </label>
+  <textarea id="blockKeywords" rows="10"></textarea>
+
+  <label for="blockChannelPatterns">Hide videos from channels whose name contains
+    <div class="hint">One piece of text per line, matched anywhere in the channel name, ignoring case. Example: "vevo" hides "TaylorSwiftVEVO".</div>
+  </label>
+  <textarea id="blockChannelPatterns"></textarea>
+
+  <label for="studyWords">Study words (keep for the AI to decide)
+    <div class="hint">If a title contains one of these whole words, the two lists above are skipped for that video and the AI decides. This keeps "Build a music player in React" from being hidden. Channels in "Always show" are also never hidden by the lists above.</div>
+  </label>
+  <textarea id="studyWords" rows="6"></textarea>
+  <button id="restoreWords" type="button">Restore the three word lists to the defaults</button>
+  <div class="hint">Fills the three boxes above with the built-in lists. Nothing changes until you press Save.</div>
+
+  <label for="threshold">Match threshold: <span id="thresholdValue"></span>
+    <div class="hint">A video is shown if the model's probability is at least this value. Lower shows more, higher hides more.</div>
+  </label>
+  <div class="row"><input type="range" id="threshold" min="0.05" max="0.95" step="0.05"></div>
+
+  <label for="price">Input price per 1M tokens (USD)
+    <div class="hint">Used only for the cost estimate. The default is the gpt-6-luna uncached input price in OpenAI's Decisions guide when this was written. Output tokens are not charged for Decisions. Check the current price and update it here if it changes.</div>
+  </label>
+  <input type="number" id="price" min="0" step="0.01">
+
+  <button id="save">Save</button>
+  <button id="clearCache">Clear cache</button>
+  <div id="status" role="status"></div>
+
+  <script src="shared.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>

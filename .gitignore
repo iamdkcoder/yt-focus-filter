@@ -1,0 +1,20 @@
+# Local Claude Code settings
+.claude/settings.local.json
+
+# Secrets / environment
+.env
+.env.*
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+*.zip
+*.crx
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

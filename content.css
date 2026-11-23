@@ -1,0 +1,5 @@
+/* Tiles stay hidden while a verdict is pending, and when the verdict is "hide". */
+[data-ytff="pending"],
+[data-ytff="hide"] {
+  display: none !important;
+}
