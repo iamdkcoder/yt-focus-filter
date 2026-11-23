@@ -20,7 +20,16 @@ const warned = new Set();
 chrome.action.onClicked.addListener(() => chrome.runtime.openOptionsPage());
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || !msg || msg.type !== 'classify') return;
+  if (sender.id !== chrome.runtime.id || !msg) return;
+  if (msg.type === 'descriptions') {
+    getDescriptions(msg.ids).then(sendResponse, (err) => {
+      const message = err && err.message ? err.message : String(err);
+      warnOnce(message);
+      sendResponse({ ok: false, error: message });
+    });
+    return true;
+  }
+  if (msg.type !== 'classify') return;
   classify(msg).then(sendResponse, (err) => {
     warnOnce(err && err.message ? err.message : String(err));
     sendResponse({ ok: false, error: err && err.message ? err.message : String(err) });
@@ -150,6 +159,69 @@ async function runBatch(batch) {
   } catch (err) {
     batch.forEach((item) => item.reject(err));
   }
+}
+
+// --- YouTube Data API: video descriptions --------------------------------------------------------
+// Official API (videos.list, 1 quota unit per request, up to 50 ids). The key is sent in a header so it never
+// appears in a URL, and is read from chrome.storage.local ("ytApiKey"). Description, tags and category are cached
+// as "d:<videoId>" -> { t: description, g: tags (one per line), c: categoryId }.
+
+const DESC_PREFIX = 'd:';
+const DESC_KEEP_CHARS = 4000;
+const TAGS_KEEP_CHARS = 1000;
+const YT_BATCH = 50;
+let ytBlockedUntil = 0;
+
+async function getDescriptions(ids) {
+  const wanted = [...new Set((Array.isArray(ids) ? ids : []).filter((id) => typeof id === 'string' && /^[\w-]{6,20}$/.test(id)))];
+  const map = {};
+  if (!wanted.length) return { ok: true, map };
+
+  const stored = await chrome.storage.local.get(wanted.map((id) => DESC_PREFIX + id));
+  const missing = [];
+  for (const id of wanted) {
+    const hit = stored[DESC_PREFIX + id];
+    // Entries saved before tags and categories were added have no "c" field, so they are fetched again.
+    if (hit && typeof hit.t === 'string' && typeof hit.c === 'string') map[id] = { d: hit.t, g: hit.g || '', c: hit.c };
+    else missing.push(id);
+  }
+  if (!missing.length) return { ok: true, map };
+
+  const { ytApiKey } = await chrome.storage.local.get('ytApiKey');
+  if (!ytApiKey) return { ok: false, error: 'No YouTube API key set. Add one in the extension options to match descriptions.' };
+  if (Date.now() < ytBlockedUntil) return { ok: false, error: 'YouTube API temporarily paused after an error.' };
+
+  const writes = {};
+  for (let i = 0; i < missing.length; i += YT_BATCH) {
+    const chunk = missing.slice(i, i + YT_BATCH);
+    const url =
+      'https://www.googleapis.com/youtube/v3/videos?part=snippet&fields=items(id,snippet(description,tags,categoryId))&id=' +
+      chunk.map(encodeURIComponent).join(',');
+    let resp;
+    try {
+      resp = await fetch(url, { headers: { 'x-goog-api-key': ytApiKey } });
+    } catch (err) {
+      return { ok: false, error: `Network error calling the YouTube API: ${err.message}` };
+    }
+    if (!resp.ok) {
+      ytBlockedUntil = Date.now() + 60_000;
+      const hint = resp.status === 403 ? ' (key rejected, API not enabled, or daily quota used up)' : '';
+      return { ok: false, error: `YouTube API HTTP ${resp.status}${hint}. Check the key in the extension options.` };
+    }
+    const data = await resp.json();
+    const found = new Map(((data && data.items) || []).map((v) => [v.id, v.snippet || {}]));
+    for (const id of chunk) {
+      // A video the API does not return (private, removed) is cached as having no description, tags or category.
+      const sn = found.get(id) || {};
+      const d = String(sn.description || '').replace(/\s+/g, ' ').trim().slice(0, DESC_KEEP_CHARS);
+      const g = (Array.isArray(sn.tags) ? sn.tags : []).join('\n').slice(0, TAGS_KEEP_CHARS);
+      const c = String(sn.categoryId || '');
+      map[id] = { d, g, c };
+      writes[DESC_PREFIX + id] = { t: d, g, c, at: Date.now() };
+    }
+  }
+  if (Object.keys(writes).length) await chrome.storage.local.set(writes);
+  return { ok: true, map };
 }
 
 // --- OpenAI Decisions API -----------------------------------------------------------------------
