@@ -10,7 +10,7 @@
     'ytd-compact-video-renderer', // watch-page sidebar (older layout)
     'yt-lockup-view-model', // newer layout, used on watch sidebar and elsewhere
   ].join(',');
-  const TITLE_SELECTORS = ['#video-title', '.yt-lockup-metadata-view-model__heading-reset', '.yt-lockup-metadata-view-model__title', 'h3'];
+  const TITLE_SELECTORS = ['#video-title', '.ytLockupMetadataViewModelHeadingReset','.yt-lockup-metadata-view-model__heading-reset', '.yt-lockup-metadata-view-model__title', 'h3'];
   // The description snippet YouTube renders inside a tile (mainly search results). Home and sidebar tiles
   // usually have none, so for those the local rules fall back to the title alone.
   const DESCRIPTION_SELECTORS = [
@@ -21,6 +21,8 @@
     '.yt-lockup-metadata-view-model__snippet',
   ];
   const CHANNEL_SELECTORS = [
+    // Current card markup: the first metadata row holds the channel name (later rows are views and age).
+    '.ytContentMetadataViewModelMetadataRow .ytContentMetadataViewModelMetadataText',
     'ytd-channel-name a',
     '#channel-name a',
     '.yt-content-metadata-view-model__metadata-text',
@@ -118,7 +120,13 @@
     if (!title) return null; // title not rendered yet; a later scan will pick it up
     const meta = descCache.get(id) || {};
     const description = firstText(tile, DESCRIPTION_SELECTORS) || meta.d || '';
-    return { id, title, channel: firstText(tile, CHANNEL_SELECTORS), description, tags: meta.g || '', category: meta.c || '' };
+    // Fallback: the avatar button is labelled "Go to channel <name>".
+    let channel = firstText(tile, CHANNEL_SELECTORS);
+    if (!channel) {
+      const label = tile.querySelector('[aria-label^="Go to channel "]');
+      if (label) channel = clean(label.getAttribute('aria-label').slice('Go to channel '.length));
+    }
+    return { id, title, channel, description, tags: meta.g || '', category: meta.c || '' };
   }
 
   // --- Description lookup ----------------------------------------------------------------------
