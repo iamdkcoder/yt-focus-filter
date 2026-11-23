@@ -26,15 +26,21 @@ async function load() {
   const { apiKey } = await chrome.storage.local.get('apiKey');
   $('enabled').checked = settings.enabled;
   $('debug').checked = settings.debug;
+  $('useDescription').checked = settings.useDescription;
   $('focus').value = settings.focus;
   $('allowChannels').value = settings.allowChannels.join('\n');
   $('blockChannels').value = settings.blockChannels.join('\n');
   $('blockKeywords').value = settings.blockKeywords.join('\n');
   $('blockChannelPatterns').value = settings.blockChannelPatterns.join('\n');
   $('studyWords').value = settings.studyWords.join('\n');
+  $('blockCategories').value = settings.blockCategories.join('\n');
   $('threshold').value = settings.threshold;
   $('thresholdValue').textContent = settings.threshold;
   $('price').value = settings.inputPricePerMillion;
+  const hidden = (await chrome.storage.local.get(YTFF.HIDDEN_KEY))[YTFF.HIDDEN_KEY] || {};
+  $('hiddenHint').textContent = `${Object.keys(hidden).length} video(s) hidden by hand with the "Hide…" button. Channels and keywords you added there are in the lists above.`;
+  const { ytApiKey } = await chrome.storage.local.get('ytApiKey');
+  $('ytKeyHint').textContent = ytApiKey ? 'A key is saved. Leave the field empty to keep it.' : 'No key saved yet.';
   $('keyHint').textContent = apiKey ? 'A key is saved. Leave the field empty to keep it.' : 'No key saved yet.';
 }
 
@@ -58,11 +64,13 @@ $('save').addEventListener('click', async () => {
   const settings = {
     enabled: $('enabled').checked,
     debug: $('debug').checked,
+    useDescription: $('useDescription').checked,
     allowChannels: parseList($('allowChannels').value),
     blockChannels: parseList($('blockChannels').value),
     blockKeywords: parseList($('blockKeywords').value),
     blockChannelPatterns: parseList($('blockChannelPatterns').value),
     studyWords: parseList($('studyWords').value),
+    blockCategories: parseList($('blockCategories').value),
     focus,
     threshold: Math.min(0.95, Math.max(0.05, Number($('threshold').value))),
     inputPricePerMillion: Number.isFinite(price) && price >= 0 ? price : YTFF.DEFAULTS.inputPricePerMillion,
@@ -74,6 +82,10 @@ $('save').addEventListener('click', async () => {
   const newKey = $('apiKey').value.trim();
   if (newKey) await chrome.storage.local.set({ apiKey: newKey });
   $('apiKey').value = '';
+
+  const newYtKey = $('ytApiKey').value.trim();
+  if (newYtKey) await chrome.storage.local.set({ ytApiKey: newYtKey });
+  $('ytApiKey').value = '';
 
   await chrome.storage.local.set({ settings, cacheEpoch: Date.now() });
   await load();
@@ -126,7 +138,15 @@ $('restoreWords').addEventListener('click', () => {
   $('blockKeywords').value = YTFF.DEFAULTS.blockKeywords.join('\n');
   $('blockChannelPatterns').value = YTFF.DEFAULTS.blockChannelPatterns.join('\n');
   $('studyWords').value = YTFF.DEFAULTS.studyWords.join('\n');
+  $('blockCategories').value = YTFF.DEFAULTS.blockCategories.join('\n');
   setStatus('Default lists loaded into the boxes. Press Save to apply them.');
+});
+
+$('clearHidden').addEventListener('click', async () => {
+  if (!confirm('Show all videos you hid by hand again? Channels and keywords you added stay in the lists.')) return;
+  await chrome.storage.local.remove(YTFF.HIDDEN_KEY);
+  await load();
+  setStatus('Hidden videos cleared.');
 });
 
 $('clearCache').addEventListener('click', async () => {

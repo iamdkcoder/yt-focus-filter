@@ -4,7 +4,16 @@ globalThis.YTFF = {
   MODEL: 'gpt-6-luna',
   QUESTION_NAME: 'relevant',
   CACHE_PREFIX: 'v:', // per-video cache entries are stored as "v:<videoId>" -> { p, t }
+  HIDDEN_KEY: 'hiddenVideos', // videos hidden by hand: { "<videoId>": timestamp }
+  MAX_HIDDEN: 2000, // oldest entries are dropped beyond this
   STATS_KEEP_DAYS: 400, // daily usage buckets older than this are dropped (the running total is kept)
+
+  // YouTube's video category ids (snippet.categoryId) and their names.
+  CATEGORIES: {
+    1: 'Film & Animation', 2: 'Autos & Vehicles', 10: 'Music', 15: 'Pets & Animals', 17: 'Sports', 19: 'Travel & Events',
+    20: 'Gaming', 22: 'People & Blogs', 23: 'Comedy', 24: 'Entertainment', 25: 'News & Politics', 26: 'Howto & Style',
+    27: 'Education', 28: 'Science & Technology', 29: 'Nonprofits & Activism',
+  },
 
   DEFAULTS: {
     enabled: true,
@@ -12,6 +21,7 @@ globalThis.YTFF = {
     threshold: 0.6,
     allowChannels: [], // channel names whose videos are always shown
     blockChannels: [], // channel names whose videos are always hidden (wins over allow)
+    useDescription: true, // local keyword/study-word rules also check the description snippet, not just the title
     // Local rules that hide a video without calling the AI. Phrases match whole words in the title (any language),
     // ignoring case. Channel patterns match anywhere inside the channel name. A video whose title contains a study
     // word is never hidden by these rules (the AI decides instead), and "Always show" channels override them.
@@ -33,6 +43,8 @@ globalThis.YTFF = {
       'recipe', 'cricket', 'ipl', 'football', 'highlights', 'wwe', 'celebrity', 'gossip', 'viral', 'challenge', 'horror',
       'scary', 'satisfying', 'tiktok', 'horoscope', 'रेसिपी',
     ],
+    // YouTube categories to hide (needs the YouTube API key). Same study-word and "Always show" exceptions apply.
+    blockCategories: ['Music', 'Comedy', 'News & Politics', 'Sports'],
     blockChannelPatterns: [
       'vevo', '- topic', 'records', 'music', 't-series', 'saregama', 'tips official', 'comedy', 'standup', 'podcast',
     ],

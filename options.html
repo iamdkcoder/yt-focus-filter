@@ -33,6 +33,9 @@
   <button id="resetUsage">Reset usage statistics</button>
 
   <label><input type="checkbox" id="enabled"> Enable filtering</label>
+  <label><input type="checkbox" id="useDescription"> Also check the video description, tags and category
+    <div class="hint">The hide words and study words below are matched against the title, description and tags, and the category list is applied. If a tile shows no snippet (home feed, sidebar), the description is read once through the YouTube Data API (needs the key below) and cached. New videos wait a moment for that lookup. Turn it off to match titles only.</div>
+  </label>
   <label><input type="checkbox" id="debug"> Log each verdict to the page console
     <div class="hint">Shows probability, channel, and title for every video. Useful for tuning the threshold.</div>
   </label>
@@ -42,6 +45,12 @@
     <div class="hint">Stored only in this browser (chrome.storage.local) and sent only to api.openai.com. Use a restricted key with a low spend limit.</div>
   </label>
   <input type="password" id="apiKey" autocomplete="off" placeholder="Paste a key to set or replace it">
+
+  <label for="ytApiKey">YouTube Data API key (optional)
+    <div class="hint" id="ytKeyHint"></div>
+    <div class="hint">Used to read video descriptions for the word lists. Stored only in this browser and sent only to googleapis.com. Restrict the key to "YouTube Data API v3" in Google Cloud. Without it, only titles are matched.</div>
+  </label>
+  <input type="password" id="ytApiKey" autocomplete="off" placeholder="Paste a key to set or replace it">
 
   <label for="focus">What do you want to see?
     <div class="hint">Describe the topics to keep. Everything else is hidden. Changing this clears the cache.</div>
@@ -68,6 +77,11 @@
   </label>
   <textarea id="blockChannelPatterns"></textarea>
 
+  <label for="blockCategories">Hide these YouTube categories (no AI call)
+    <div class="hint">One per line. Needs the YouTube API key and "Also check the video description" turned on. Names: Film &amp; Animation, Autos &amp; Vehicles, Music, Pets &amp; Animals, Sports, Travel &amp; Events, Gaming, People &amp; Blogs, Comedy, Entertainment, News &amp; Politics, Howto &amp; Style, Education, Science &amp; Technology, Nonprofits &amp; Activism. The study-word and "Always show" exceptions below still apply.</div>
+  </label>
+  <textarea id="blockCategories" rows="4"></textarea>
+
   <label for="studyWords">Study words (keep for the AI to decide)
     <div class="hint">If a title contains one of these whole words, the two lists above are skipped for that video and the AI decides. This keeps "Build a music player in React" from being hidden. Channels in "Always show" are also never hidden by the lists above.</div>
   </label>
@@ -87,6 +101,8 @@
 
   <button id="save">Save</button>
   <button id="clearCache">Clear cache</button>
+  <button id="clearHidden">Clear hidden videos</button>
+  <div class="hint" id="hiddenHint"></div>
   <div id="status" role="status"></div>
 
   <script src="shared.js"></script>
